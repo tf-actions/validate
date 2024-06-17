@@ -1,0 +1,13 @@
+name: Terraform Validation
+description: Validate a Terraform configuration, and post a code review on the pull request highlighting issues.
+inputs:
+  init:
+    description: Run terraform init before validating
+    required: true
+    default: "true"
+runs:
+  using: node20
+  main: dist/index.mjs
+branding:
+  icon: check-circle
+  color: purple
