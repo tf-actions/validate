@@ -1,10 +1,28 @@
 name: Terraform Validation
 description: Validate a Terraform configuration, and post a code review on the pull request highlighting issues.
 inputs:
+  cli_path:
+    description: Path to the cli executable to use
+    required: false
   init:
     description: Run terraform init before validating
     required: true
     default: "true"
+  strict_mode:
+    description: Fail on warnings as well as errors
+    required: true
+    default: "false"
+  working_directory:
+    description: The directory to run the formatting from. Defaults to the root of the repository.
+    required: false
+    default: ${{ github.workspace }}
+  token:
+    description: GitHub token to create a code review
+    required: false
+    default: ${{ github.token }}
+  api_url:
+    description: GitHub API URL. Defaults to https://api.github.com
+    default: https://api.github.com
 runs:
   using: node20
   main: dist/index.mjs
