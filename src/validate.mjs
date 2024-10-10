@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import { exec } from "@actions/exec";
-import { findCLI } from "./find-cli.mjs";
-import { createCheck } from "./create-check.mjs";
+import { findCLI } from "./lib/find-cli.mjs";
+import { createCheck } from "./lib/create-check.mjs";
 
 core.info("Starting Terraform validation");
 

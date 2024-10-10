@@ -9,6 +9,6 @@ clean:          ## Clean the project.
 	rm -rf dist
 .PHONY: clean
 
-dist/index.mjs: src/*.mjs
+dist/index.mjs: src/*.mjs src/lib/*.mjs package.json
 	ncc build src/validate.mjs \
 		--out $(@D)

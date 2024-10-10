@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "GitHub Action to validate a Terraform configuration, and post a code review on the pull request highlighting issues.",
 	"main": "./src/validate.mjs",
+	"type": "module",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
