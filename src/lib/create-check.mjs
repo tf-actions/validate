@@ -6,18 +6,18 @@ const octokit = github.getOctokit(core.getInput("token", { required: true }));
 
 export async function createCheck(validationResult) {
 	core.info("Creating code check");
-	// Create the check for annotations
-	const { data: check } = await octokit.rest.checks.create({
+
+	const summary = validationResult.valid
+		? `Found ${validationResult.error_count} errors and ${validationResult.warning_count} warnings`
+		: "Terraform configuration is valid";
+
+	// Find the current check
+	const { data: currentChecks } = await octokit.rest.checks.listForRef({
 		...context.repo,
-		name: context.action,
-		head_sha: context.sha,
-		started_at: new Date().toISOString(),
-		output: {
-			title: "Terraform validation",
-			summary: validationResult.summary,
-			text: `Found ${validation.error_count} errors and ${validation.warning_count} warnings`,
-		},
+		ref: context.sha,
 	});
+
+	const check = currentChecks.check_runs.find((c) => c.name === context.job);
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
@@ -38,16 +38,9 @@ export async function createCheck(validationResult) {
 		await octokit.rest.checks.update({
 			...context.repo,
 			check_run_id: check.id,
+			status: check.status,
+			output: check.output,
 			annotations: annotations.slice(i, i + 50),
 		});
 	}
-
-	// Mark the check as completed
-	await octokit.rest.checks.update({
-		...context.repo,
-		check_run_id: check.id,
-		status: "completed",
-		conclusion: validationResult.valid ? "success" : "failure",
-		completed_at: new Date().toISOString(),
-	});
 }
