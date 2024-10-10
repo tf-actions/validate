@@ -31661,7 +31661,7 @@ async function createCheck(validationResult) {
 		output: {
 			title: "Terraform validation",
 			summary: validationResult.summary,
-			text: `Found ${validation.error_count} errors and ${validation.warning_count} warnings`,
+			text: `Found ${validationResult.error_count} errors and ${validationResult.warning_count} warnings`,
 		},
 	});
 
