@@ -29903,6 +29903,13 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:events"
 
 /***/ }),
 
+/***/ 6760:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
+
+/***/ }),
+
 /***/ 7075:
 /***/ ((module) => {
 
@@ -31640,14 +31647,13 @@ var _actions_github__WEBPACK_IMPORTED_MODULE_1___namespace_cache;
 
 
 const { context } = /*#__PURE__*/ (_actions_github__WEBPACK_IMPORTED_MODULE_1___namespace_cache || (_actions_github__WEBPACK_IMPORTED_MODULE_1___namespace_cache = __nccwpck_require__.t(_actions_github__WEBPACK_IMPORTED_MODULE_1__, 2)));
-const { pull_request } = context.payload;
 
 const octokit = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput("token", { required: true }));
 
 async function createCheck(validationResult) {
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Creating code check");
 	// Create the check for annotations
-	const { data: check } = await octokit.checks.create({
+	const { data: check } = await octokit.rest.checks.create({
 		...context.repo,
 		name: context.action,
 		head_sha: context.sha,
@@ -31675,7 +31681,7 @@ async function createCheck(validationResult) {
 
 	// GitHub API will only accept 50 annotations at a time
 	for (let i = 0; i < annotations.length; i += 50) {
-		await octokit.checks.update({
+		await octokit.rest.checks.update({
 			...context.repo,
 			check_run_id: check.id,
 			annotations: annotations.slice(i, i + 50),
@@ -31683,7 +31689,7 @@ async function createCheck(validationResult) {
 	}
 
 	// Mark the check as completed
-	await octokit.checks.update({
+	await octokit.rest.checks.update({
 		...context.repo,
 		check_run_id: check.id,
 		status: "completed",
@@ -31710,7 +31716,10 @@ var core = __nccwpck_require__(4552);
 var io = __nccwpck_require__(4062);
 ;// CONCATENATED MODULE: external "node:os"
 const external_node_os_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:os");
+// EXTERNAL MODULE: external "node:path"
+var external_node_path_ = __nccwpck_require__(6760);
 ;// CONCATENATED MODULE: ./src/lib/find-cli.mjs
+
 
 
 
@@ -31731,45 +31740,52 @@ async function findCLI() {
 			await io.which(cliPath, true);
 			return cliPath;
 		} catch {
-			core.warning(`CLI path from input not found: ${cliPath}`);
+			core.info(`CLI path from input not found: ${cliPath}`);
 			core.debug("Searching for CLI in PATH");
 		}
 	}
 
-	try {
-		// Looking for tofu-bin in case the wrapper from setup-opentofu is in use
-		core.debug("Looking for tofu-bin");
-		await io.which(cliPath, true);
-		core.info(`Using tofu binary at ${cliPath}`);
-		return cliPath;
-	} catch {
-		core.debug("`tofu-bin` not found");
+	if (process.env.TOFU_CLI_PATH) {
+		core.debug(`Looking for CLI path from TOFU_CLI_PATH: ${cliPath}`);
+		cliPath = external_node_path_.join(process.env.TOFU_CLI_PATH, `tofu-bin${exeSuffix}`);
 		try {
-			core.debug("Looking for `tofu`");
-			cliPath = await io.which(`tofu${exeSuffix}`, true);
-			core.info(`Using tofu binary at ${cliPath}`);
+			await io.which(cliPath, true);
 			return cliPath;
 		} catch {
-			core.warning("tofu binary not found");
+			core.info(`CLI not found using TOFU_CLI_PATH: ${cliPath}`);
+		}
+	}
+
+	if (process.env.TERRAFORM_CLI_PATH) {
+		core.debug(`Looking for CLI path from TERRAFORM_CLI_PATH: ${cliPath}`);
+		cliPath = external_node_path_.join(
+			process.env.TERRAFORM_CLI_PATH,
+			`terraform-bin${exeSuffix}`,
+		);
+		try {
+			await io.which(cliPath, true);
+			return cliPath;
+		} catch {
+			core.info(`CLI not found using TERRAFORM_CLI_PATH: ${cliPath}`);
 		}
 	}
 
 	try {
-		// Looking for terraform-bin in case the wrapper from setup-terraform is in use
-		core.debug("Looking for `terraform-bin`");
-		cliPath = await io.which(`terraform-bin${exeSuffix}`, true);
+		core.debug("Looking for `tofu`");
+		cliPath = await io.which(`tofu${exeSuffix}`, true);
+		core.info(`Using tofu binary at ${cliPath}`);
+		return cliPath;
+	} catch {
+		core.info("tofu binary not found");
+	}
+
+	try {
+		core.debug("Looking for `terraform`");
+		cliPath = await io.which(`terraform${exeSuffix}`, true);
 		core.info(`Using terraform binary at ${cliPath}`);
 		return cliPath;
 	} catch {
-		core.debug("`terraform-bin` not found");
-		try {
-			core.debug("Looking for `terraform`");
-			cliPath = await io.which(`terraform${exeSuffix}`, true);
-			core.info(`Using terraform binary at ${cliPath}`);
-			return cliPath;
-		} catch {
-			core.warning("terraform binary not found");
-		}
+		core.info("terraform binary not found");
 	}
 	throw new Error("CLI not found");
 }
@@ -31782,9 +31798,11 @@ async function findCLI() {
 
 __nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(4552);
-/* harmony import */ var _actions_exec__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(2736);
-/* harmony import */ var _lib_find_cli_mjs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(8866);
-/* harmony import */ var _lib_create_check_mjs__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(356);
+/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6760);
+/* harmony import */ var _actions_exec__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(2736);
+/* harmony import */ var _lib_find_cli_mjs__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(8866);
+/* harmony import */ var _lib_create_check_mjs__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(356);
+
 
 
 
@@ -31795,8 +31813,8 @@ _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Starting Terraform validation")
 let workingDirectory = process.env.GITHUB_WORKSPACE;
 if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput("working_directory") !== workingDirectory) {
 	let userWorkingDirectory = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput("working_directory");
-	if (!path.isAbsolute(userWorkingDirectory)) {
-		userWorkingDirectory = path.join(
+	if (!node_path__WEBPACK_IMPORTED_MODULE_1__.isAbsolute(userWorkingDirectory)) {
+		userWorkingDirectory = node_path__WEBPACK_IMPORTED_MODULE_1__.join(
 			process.env.GITHUB_WORKSPACE,
 			_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput("working_directory"),
 		);
@@ -31809,9 +31827,9 @@ if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput("working_directory") !==
 }
 
 _actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("Finding Terraform CLI");
-const cli = await (0,_lib_find_cli_mjs__WEBPACK_IMPORTED_MODULE_2__/* .findCLI */ .U)();
+const cli = await (0,_lib_find_cli_mjs__WEBPACK_IMPORTED_MODULE_3__/* .findCLI */ .U)();
 let cliName = "";
-switch (cli.split(path.sep).pop()) {
+switch (cli.split(node_path__WEBPACK_IMPORTED_MODULE_1__.sep).pop()) {
 	case "tofu":
 	case "tofu-bin":
 		cliName = "tofu";
@@ -31821,13 +31839,13 @@ switch (cli.split(path.sep).pop()) {
 		cliName = "terraform";
 		break;
 	default:
-		cliName = cli.split(path.sep).pop();
+		cliName = cli.split(node_path__WEBPACK_IMPORTED_MODULE_1__.sep).pop();
 }
 _actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
 
 if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput("init", { required: true })) {
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup(`Running ${cliName} init`);
-	await (0,_actions_exec__WEBPACK_IMPORTED_MODULE_1__.exec)(cli, ["init", "-backend=false"]);
+	await (0,_actions_exec__WEBPACK_IMPORTED_MODULE_2__.exec)(cli, ["init", "-backend=false"]);
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
 }
 
@@ -31846,16 +31864,16 @@ const options = {
 	ignoreReturnCode: true,
 	silent: true, // avoid printing command in stdout: https://github.com/actions/toolkit/issues/649
 };
-await (0,_actions_exec__WEBPACK_IMPORTED_MODULE_1__.exec)(terraformCLI, ["validate", "-json"], options);
+await (0,_actions_exec__WEBPACK_IMPORTED_MODULE_2__.exec)(cli, ["validate", "-json"], options);
 const validation = JSON.parse(stdout);
 
-if (!validation.version.startsWith("1.")) {
+if (!validation.format_version.startsWith("1.")) {
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(
 		`Validation output version ${validation.version} is not supported`,
 	);
 }
 
-await (0,_lib_create_check_mjs__WEBPACK_IMPORTED_MODULE_3__/* .createCheck */ .b)(validation);
+await (0,_lib_create_check_mjs__WEBPACK_IMPORTED_MODULE_4__/* .createCheck */ .b)(validation);
 
 // Generate summary for the run
 if (validation.valid) {

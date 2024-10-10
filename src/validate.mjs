@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import * as path from "node:path";
 import { exec } from "@actions/exec";
 import { findCLI } from "./lib/find-cli.mjs";
 import { createCheck } from "./lib/create-check.mjs";
@@ -59,10 +60,10 @@ const options = {
 	ignoreReturnCode: true,
 	silent: true, // avoid printing command in stdout: https://github.com/actions/toolkit/issues/649
 };
-await exec(terraformCLI, ["validate", "-json"], options);
+await exec(cli, ["validate", "-json"], options);
 const validation = JSON.parse(stdout);
 
-if (!validation.version.startsWith("1.")) {
+if (!validation.format_version.startsWith("1.")) {
 	core.setFailed(
 		`Validation output version ${validation.version} is not supported`,
 	);
