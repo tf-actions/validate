@@ -16,8 +16,8 @@ export async function createCheck(validationResult) {
 		...context.repo,
 		ref: context.sha,
 	});
-
 	const check = currentChecks.check_runs.find((c) => c.name === context.job);
+	console.dir(check);
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
