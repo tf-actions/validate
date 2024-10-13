@@ -6,7 +6,20 @@ const octokit = github.getOctokit(core.getInput("token", { required: true }));
 
 export async function createCheck(validationResult) {
 	core.info("Creating code check");
-	core.debug(JSON.stringify(validationResult));
+	if (core.isDebug()) {
+		core.startGroup("ValidationResult");
+		console.dir(validationResult, { depth: null });
+		core.endGroup();
+
+		core.startGroup("GitHub object");
+		core.startGroup("context");
+		console.dir(context, { depth: null });
+		core.endGroup();
+		core.startGroup("default");
+		console.dir(github.default, { depth: null });
+		core.endGroup();
+		core.endGroup();
+	}
 
 	const checkSummary = validationResult.valid
 		? "Configuration is valid"
@@ -15,28 +28,50 @@ export async function createCheck(validationResult) {
 	// Find the current check
 	const { data: currentChecks } = await octokit.rest.checks.listForRef({
 		...context.repo,
-		ref: context.sha,
+		ref: context.payload.after,
 	});
 	core.debug(`Found ${currentChecks.check_runs.length} checks`);
+	if (core.isDebug()) {
+		core.startGroup("currentChecks");
+		console.dir(currentChecks, { depth: null });
+		core.endGroup();
+	}
 
 	const check = currentChecks.check_runs.find((c) => c.name === context.action);
 	core.debug(`Found check ${check.id}`);
+
+	core.debug("Clearing existing annotations from check");
+	// Clear the annotations from previous runs
+	await octokit.rest.checks.update({
+		...context.repo,
+		check_run_id: check.id,
+		status: "in_progress",
+		output: {
+			title: check.output.title,
+			summary: checkSummary,
+			annotations: [],
+		},
+	});
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
 		annotations.push({
 			annotation_level: d.severity,
-			title: d.summary,
-			path: d.path,
+			message: d.summary,
+			raw_details: d.detail,
+			path: d.range.filename,
 			start_line: d.range.start.line,
-			start_column: d.range.start.column,
 			end_line: d.range.end.line,
+			start_column: d.range.start.column,
 			end_column: d.range.end.column,
-			message: d.detail,
 		});
 	}
 	core.info(`Creating ${annotations.length} annotations`);
-	core.debug(JSON.stringify(annotations));
+	if (core.isDebug()) {
+		core.startGroup("annotations");
+		console.dir(annotations, { depth: null });
+		core.endGroup();
+	}
 
 	// GitHub API will only accept 50 annotations at a time
 	for (let i = 0; i < annotations.length; i += 50) {
@@ -47,8 +82,8 @@ export async function createCheck(validationResult) {
 			output: {
 				title: check.output.title,
 				summary: checkSummary,
+				annotations: annotations.slice(i, i + 50),
 			},
-			annotations: annotations.slice(i, i + 50),
 		});
 	}
 	core.info("Code check updated");

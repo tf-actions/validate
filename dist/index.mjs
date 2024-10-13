@@ -31652,7 +31652,20 @@ const octokit = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions
 
 async function createCheck(validationResult) {
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Creating code check");
-	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(JSON.stringify(validationResult));
+	if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.isDebug()) {
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("ValidationResult");
+		console.dir(validationResult, { depth: null });
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("GitHub object");
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("context");
+		console.dir(context, { depth: null });
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("default");
+		console.dir(_actions_github__WEBPACK_IMPORTED_MODULE_1__, { depth: null });
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+	}
 
 	const checkSummary = validationResult.valid
 		? "Configuration is valid"
@@ -31661,28 +31674,50 @@ async function createCheck(validationResult) {
 	// Find the current check
 	const { data: currentChecks } = await octokit.rest.checks.listForRef({
 		...context.repo,
-		ref: context.sha,
+		ref: context.payload.after,
 	});
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`Found ${currentChecks.check_runs.length} checks`);
+	if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.isDebug()) {
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("currentChecks");
+		console.dir(currentChecks, { depth: null });
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+	}
 
 	const check = currentChecks.check_runs.find((c) => c.name === context.action);
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`Found check ${check.id}`);
+
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug("Clearing existing annotations from check");
+	// Clear the annotations from previous runs
+	await octokit.rest.checks.update({
+		...context.repo,
+		check_run_id: check.id,
+		status: "in_progress",
+		output: {
+			title: check.output.title,
+			summary: checkSummary,
+			annotations: [],
+		},
+	});
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
 		annotations.push({
 			annotation_level: d.severity,
-			title: d.summary,
-			path: d.path,
+			message: d.summary,
+			raw_details: d.detail,
+			path: d.range.filename,
 			start_line: d.range.start.line,
-			start_column: d.range.start.column,
 			end_line: d.range.end.line,
+			start_column: d.range.start.column,
 			end_column: d.range.end.column,
-			message: d.detail,
 		});
 	}
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info(`Creating ${annotations.length} annotations`);
-	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(JSON.stringify(annotations));
+	if (_actions_core__WEBPACK_IMPORTED_MODULE_0__.isDebug()) {
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("annotations");
+		console.dir(annotations, { depth: null });
+		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
+	}
 
 	// GitHub API will only accept 50 annotations at a time
 	for (let i = 0; i < annotations.length; i += 50) {
@@ -31693,8 +31728,8 @@ async function createCheck(validationResult) {
 			output: {
 				title: check.output.title,
 				summary: checkSummary,
+				annotations: annotations.slice(i, i + 50),
 			},
-			annotations: annotations.slice(i, i + 50),
 		});
 	}
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Code check updated");
