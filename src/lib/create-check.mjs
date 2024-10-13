@@ -11,15 +11,13 @@ export async function createCheck(validationResult) {
 		console.dir(validationResult, { depth: null });
 		core.endGroup();
 
-		core.startGroup("GitHub object");
 		core.startGroup("context");
 		console.dir(context, { depth: null });
 		core.endGroup();
-		core.startGroup("default");
-		console.dir(github.default, { depth: null });
-		core.endGroup();
-		core.endGroup();
 	}
+
+	core.debug(`github.action = ${process.env.GITHUB_ACTION}`);
+	core.debug(`github.job = ${process.env.GITHUB_JOB}`);
 
 	const checkSummary = validationResult.valid
 		? "Configuration is valid"

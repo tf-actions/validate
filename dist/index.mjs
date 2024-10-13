@@ -31657,15 +31657,13 @@ async function createCheck(validationResult) {
 		console.dir(validationResult, { depth: null });
 		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
 
-		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("GitHub object");
 		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("context");
 		console.dir(context, { depth: null });
 		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
-		_actions_core__WEBPACK_IMPORTED_MODULE_0__.startGroup("default");
-		console.dir(_actions_github__WEBPACK_IMPORTED_MODULE_1__, { depth: null });
-		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
-		_actions_core__WEBPACK_IMPORTED_MODULE_0__.endGroup();
 	}
+
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`github.action = ${process.env.GITHUB_ACTION}`);
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`github.job = ${process.env.GITHUB_JOB}`);
 
 	const checkSummary = validationResult.valid
 		? "Configuration is valid"
