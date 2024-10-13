@@ -6,18 +6,21 @@ const octokit = github.getOctokit(core.getInput("token", { required: true }));
 
 export async function createCheck(validationResult) {
 	core.info("Creating code check");
+	core.debug(JSON.stringify(validationResult));
 
-	const summary = validationResult.valid
-		? `Found ${validationResult.error_count} errors and ${validationResult.warning_count} warnings`
-		: "Terraform configuration is valid";
+	const checkSummary = validationResult.valid
+		? "Configuration is valid"
+		: `${validationResult.error_count} errors and ${validationResult.warning_count} warnings found`;
 
 	// Find the current check
 	const { data: currentChecks } = await octokit.rest.checks.listForRef({
 		...context.repo,
 		ref: context.sha,
 	});
-	const check = currentChecks.check_runs.find((c) => c.name === context.job);
-	console.dir(check);
+	core.debug(`Found ${currentChecks.check_runs.length} checks`);
+
+	const check = currentChecks.check_runs.find((c) => c.name === context.action);
+	core.debug(`Found check ${check.id}`);
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
@@ -32,15 +35,21 @@ export async function createCheck(validationResult) {
 			message: d.detail,
 		});
 	}
+	core.info(`Creating ${annotations.length} annotations`);
+	core.debug(JSON.stringify(annotations));
 
 	// GitHub API will only accept 50 annotations at a time
 	for (let i = 0; i < annotations.length; i += 50) {
 		await octokit.rest.checks.update({
 			...context.repo,
 			check_run_id: check.id,
-			status: check.status,
-			output: check.output,
+			status: "in_progress",
+			output: {
+				title: check.output.title,
+				summary: checkSummary,
+			},
 			annotations: annotations.slice(i, i + 50),
 		});
 	}
+	core.info("Code check updated");
 }

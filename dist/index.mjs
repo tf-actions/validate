@@ -31652,18 +31652,21 @@ const octokit = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions
 
 async function createCheck(validationResult) {
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Creating code check");
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(JSON.stringify(validationResult));
 
-	const summary = validationResult.valid
-		? `Found ${validationResult.error_count} errors and ${validationResult.warning_count} warnings`
-		: "Terraform configuration is valid";
+	const checkSummary = validationResult.valid
+		? "Configuration is valid"
+		: `${validationResult.error_count} errors and ${validationResult.warning_count} warnings found`;
 
 	// Find the current check
 	const { data: currentChecks } = await octokit.rest.checks.listForRef({
 		...context.repo,
 		ref: context.sha,
 	});
-	const check = currentChecks.check_runs.find((c) => c.name === context.job);
-	console.dir(check);
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`Found ${currentChecks.check_runs.length} checks`);
+
+	const check = currentChecks.check_runs.find((c) => c.name === context.action);
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`Found check ${check.id}`);
 
 	const annotations = [];
 	for (const d of validationResult.diagnostics) {
@@ -31678,17 +31681,23 @@ async function createCheck(validationResult) {
 			message: d.detail,
 		});
 	}
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info(`Creating ${annotations.length} annotations`);
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(JSON.stringify(annotations));
 
 	// GitHub API will only accept 50 annotations at a time
 	for (let i = 0; i < annotations.length; i += 50) {
 		await octokit.rest.checks.update({
 			...context.repo,
 			check_run_id: check.id,
-			status: check.status,
-			output: check.output,
+			status: "in_progress",
+			output: {
+				title: check.output.title,
+				summary: checkSummary,
+			},
 			annotations: annotations.slice(i, i + 50),
 		});
 	}
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Code check updated");
 }
 
 
