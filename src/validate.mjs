@@ -2,7 +2,6 @@ import * as core from "@actions/core";
 import * as path from "node:path";
 import { exec } from "@actions/exec";
 import { findCLI } from "./lib/find-cli.mjs";
-import { createCheck } from "./lib/create-check.mjs";
 
 core.info("Starting Terraform validation");
 
@@ -69,8 +68,6 @@ if (!validation.format_version.startsWith("1.")) {
 	);
 }
 
-await createCheck(validation);
-
 // Generate summary for the run
 if (validation.valid) {
 	core.info("Terraform configuration is valid");
@@ -100,12 +97,28 @@ for (const diagnostic of validation.diagnostics) {
 
 	switch (diagnostic.severity) {
 		case "error":
+			core.error(diagnostic.detail, {
+				title: diagnostic.summary,
+				file: diagnostic.range.filename,
+				startLine: diagnostic.range.start.line,
+				endLine: diagnostic.range.start.line,
+				startColumn: diagnostic.range.start.column,
+				endColumn: diagnostic.range.end.column,
+			});
 			summary.addDetails(
 				diagSummary.stringify(),
 				`:x: ${diagnostic.range.filename} : ${diagnostic.summary}`,
 			);
 			break;
 		case "warning":
+			core.warning(diagnostic.detail, {
+				title: diagnostic.summary,
+				file: diagnostic.range.filename,
+				startLine: diagnostic.range.start.line,
+				endLine: diagnostic.range.start.line,
+				startColumn: diagnostic.range.start.column,
+				endColumn: diagnostic.range.end.column,
+			});
 			summary.addDetails(
 				diagSummary.stringify(),
 				`:warning: ${diagnostic.range.filename} : ${diagnostic.summary}`,
@@ -115,8 +128,6 @@ for (const diagnostic of validation.diagnostics) {
 			core.warning(`Unknown severity: ${diagnostic.severity}`);
 			continue;
 	}
-
-	summary.addDetails(diagSummary.stringify());
 }
 summary.write();
 
