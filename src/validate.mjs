@@ -87,14 +87,9 @@ if (validation.warning_count > 0) {
 	summary.addRaw(`Found ${validation.warning_count} warnings`).addEOL().addEOL;
 }
 
-summary.addSeparator();
 summary.addHeading("Validation details", 3);
 
 for (const diagnostic of validation.diagnostics) {
-	const diagSummary = core.summary
-		.addCodeBlock(diagnostic.snippet.context, "terraform")
-		.addRaw(diagnostic.detail, true);
-
 	switch (diagnostic.severity) {
 		case "error":
 			core.error(diagnostic.detail, {
@@ -105,10 +100,14 @@ for (const diagnostic of validation.diagnostics) {
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
 			});
-			summary.addDetails(
-				diagSummary.stringify(),
-				`:x: ${diagnostic.range.filename} : ${diagnostic.summary}`,
-			);
+			summary
+				.addSeparator()
+				.addHeading(
+					`:x: ${diagnostic.range.filename} : ${diagnostic.summary}`,
+					4,
+				)
+				.addCodeBlock(diagnostic.snippet.context, "terraform")
+				.addRaw(diagnostic.detail, true);
 			break;
 		case "warning":
 			core.warning(diagnostic.detail, {
@@ -119,10 +118,14 @@ for (const diagnostic of validation.diagnostics) {
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
 			});
-			summary.addDetails(
-				diagSummary.stringify(),
-				`:warning: ${diagnostic.range.filename} : ${diagnostic.summary}`,
-			);
+			summary
+				.addSeparator()
+				.addHeading(
+					`:warning: ${diagnostic.range.filename} : ${diagnostic.summary}`,
+					4,
+				)
+				.addCodeBlock(diagnostic.snippet.context, "terraform")
+				.addRaw(diagnostic.detail, true);
 			break;
 		default:
 			core.warning(`Unknown severity: ${diagnostic.severity}`);
@@ -133,10 +136,10 @@ summary.write();
 
 // Only return a failure if there are errors
 if (validation.error_count > 0) {
-	core.setFailed("Terraform configuration is invalid");
+	core.setFailed("Terraform configuration is not valid");
 } else if (
 	validation.warning_count > 0 &&
 	core.getBooleanInput("strict_mode", { required: true })
 ) {
-	core.setFailed("Terraform configuration is invalid");
+	core.setFailed("Terraform configuration is not valid");
 }

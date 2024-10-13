@@ -27566,14 +27566,9 @@ if (validation.warning_count > 0) {
 	summary.addRaw(`Found ${validation.warning_count} warnings`).addEOL().addEOL;
 }
 
-summary.addSeparator();
 summary.addHeading("Validation details", 3);
 
 for (const diagnostic of validation.diagnostics) {
-	const diagSummary = _actions_core__WEBPACK_IMPORTED_MODULE_0__.summary
-		.addCodeBlock(diagnostic.snippet.context, "terraform")
-		.addRaw(diagnostic.detail, true);
-
 	switch (diagnostic.severity) {
 		case "error":
 			_actions_core__WEBPACK_IMPORTED_MODULE_0__.error(diagnostic.detail, {
@@ -27584,10 +27579,14 @@ for (const diagnostic of validation.diagnostics) {
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
 			});
-			summary.addDetails(
-				diagSummary.stringify(),
-				`:x: ${diagnostic.range.filename} : ${diagnostic.summary}`,
-			);
+			summary
+				.addSeparator()
+				.addHeading(
+					`:x: ${diagnostic.range.filename} : ${diagnostic.summary}`,
+					4,
+				)
+				.addCodeBlock(diagnostic.snippet.context, "terraform")
+				.addRaw(diagnostic.detail, true);
 			break;
 		case "warning":
 			_actions_core__WEBPACK_IMPORTED_MODULE_0__.warning(diagnostic.detail, {
@@ -27598,10 +27597,14 @@ for (const diagnostic of validation.diagnostics) {
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
 			});
-			summary.addDetails(
-				diagSummary.stringify(),
-				`:warning: ${diagnostic.range.filename} : ${diagnostic.summary}`,
-			);
+			summary
+				.addSeparator()
+				.addHeading(
+					`:warning: ${diagnostic.range.filename} : ${diagnostic.summary}`,
+					4,
+				)
+				.addCodeBlock(diagnostic.snippet.context, "terraform")
+				.addRaw(diagnostic.detail, true);
 			break;
 		default:
 			_actions_core__WEBPACK_IMPORTED_MODULE_0__.warning(`Unknown severity: ${diagnostic.severity}`);
@@ -27612,12 +27615,12 @@ summary.write();
 
 // Only return a failure if there are errors
 if (validation.error_count > 0) {
-	_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed("Terraform configuration is invalid");
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed("Terraform configuration is not valid");
 } else if (
 	validation.warning_count > 0 &&
 	_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput("strict_mode", { required: true })
 ) {
-	_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed("Terraform configuration is invalid");
+	_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed("Terraform configuration is not valid");
 }
 
 __webpack_async_result__();
