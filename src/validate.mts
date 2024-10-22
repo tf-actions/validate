@@ -1,16 +1,26 @@
 import * as core from "@actions/core";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { exec } from "@actions/exec";
-import { findCLI } from "./lib/find-cli.mjs";
+import { strict } from "node:assert";
 
 core.info("Starting Terraform validation");
 
-let workingDirectory = process.env.GITHUB_WORKSPACE;
+// Setup flags to control execution
+let strictMode = false;
+if (core.getBooleanInput("strict_mode", { required: true })) {
+	core.debug("Strict mode enabled. Will fail if there are validation warnings");
+	strictMode = true;
+}
+
+// Get the working directory
+let workingDirectory = process.env.GITHUB_WORKSPACE ?? ".";
 if (core.getInput("working_directory") !== workingDirectory) {
 	let userWorkingDirectory = core.getInput("working_directory");
 	if (!path.isAbsolute(userWorkingDirectory)) {
 		userWorkingDirectory = path.join(
-			process.env.GITHUB_WORKSPACE,
+			process.env.GITHUB_WORKSPACE ?? "",
 			core.getInput("working_directory"),
 		);
 	}
@@ -21,26 +31,50 @@ if (core.getInput("working_directory") !== workingDirectory) {
 	}
 }
 
-core.startGroup("Finding Terraform CLI");
-const cli = await findCLI();
+// Get the Terraform/OpenTofu CLI path
+let cliPath = "";
 let cliName = "";
-switch (cli.split(path.sep).pop()) {
-	case "tofu":
-	case "tofu-bin":
-		cliName = "tofu";
-		break;
-	case "terraform":
-	case "terraform-bin":
-		cliName = "terraform";
-		break;
-	default:
-		cliName = cli.split(path.sep).pop();
+const exeSuffix = os.platform().startsWith("win") ? ".exe" : "";
+
+if (core.getInput("cli_path")) {
+	cliPath = core.getInput("cli_path");
+	if (cliPath === "") {
+		throw new Error("CLI path is empty");
+	}
+	if (!cliPath.endsWith(exeSuffix)) {
+		core.debug("Adding exe suffix to CLI path");
+		cliPath += exeSuffix;
+	}
+	core.info(`Using CLI from input: ${cliPath}`);
+	if (!fs.existsSync(cliPath)) {
+		core.setFailed(`CLI path does not exist: ${cliPath}`);
+	}
+	cliName = path.basename(cliPath, exeSuffix);
+	core.info(`Using ${cliName} CLI from input: ${cliPath}`);
+} else if (process.env.TOFU_CLI_PATH) {
+	cliPath = path.join(process.env.TOFU_CLI_PATH, `tofu-bin${exeSuffix}`);
+	cliName = "tofu";
+	core.info(`Using ${cliName} CLI from TOFU_CLI_PATH: ${cliPath}`);
+} else if (process.env.TERRAFORM_CLI_PATH) {
+	cliPath = path.join(
+		process.env.TERRAFORM_CLI_PATH,
+		`terraform-bin${exeSuffix}`,
+	);
+	cliName = "terraform";
+	core.info(`Using ${cliName} CLI from TERRAFORM_CLI_PATH: ${cliPath}`);
+} else {
+	core.setFailed(
+		"No CLI path provided, and no Terraform/OpenTofu Setup task detected.",
+	);
 }
-core.endGroup();
+
+if (!fs.existsSync(cliPath)) {
+	core.setFailed(`CLI path does not exist: ${cliPath}`);
+}
 
 if (core.getBooleanInput("init", { required: true })) {
 	core.startGroup(`Running ${cliName} init`);
-	await exec(cli, ["init", "-backend=false"]);
+	await exec(cliPath, ["init", "-backend=false"]);
 	core.endGroup();
 }
 
@@ -49,17 +83,17 @@ let stdout = "";
 let stderr = "";
 const options = {
 	listeners: {
-		stdout: (data) => {
+		stdout: (data: Buffer) => {
 			stdout += data.toString();
 		},
-		stderr: (data) => {
+		stderr: (data: Buffer) => {
 			stderr += data.toString();
 		},
 	},
 	ignoreReturnCode: true,
 	silent: true, // avoid printing command in stdout: https://github.com/actions/toolkit/issues/649
 };
-await exec(cli, ["validate", "-json"], options);
+await exec(cliPath, ["validate", "-json"], options);
 const validation = JSON.parse(stdout);
 
 if (!validation.format_version.startsWith("1.")) {
@@ -84,7 +118,10 @@ if (validation.error_count > 0) {
 	summary.addRaw(`Found ${validation.error_count} errors`).addEOL().addEOL();
 }
 if (validation.warning_count > 0) {
-	summary.addRaw(`Found ${validation.warning_count} warnings`).addEOL().addEOL;
+	summary
+		.addRaw(`Found ${validation.warning_count} warnings`)
+		.addEOL()
+		.addEOL();
 }
 
 summary.addHeading("Validation details", 3);
@@ -99,7 +136,7 @@ for (const diagnostic of validation.diagnostics) {
 				endLine: diagnostic.range.start.line,
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
-			});
+			} as core.AnnotationProperties);
 			summary
 				.addSeparator()
 				.addHeading(
@@ -117,7 +154,7 @@ for (const diagnostic of validation.diagnostics) {
 				endLine: diagnostic.range.start.line,
 				startColumn: diagnostic.range.start.column,
 				endColumn: diagnostic.range.end.column,
-			});
+			} as core.AnnotationProperties);
 			summary
 				.addSeparator()
 				.addHeading(
@@ -134,12 +171,17 @@ for (const diagnostic of validation.diagnostics) {
 }
 summary.write();
 
-// Only return a failure if there are errors
-if (validation.error_count > 0) {
+if (
+	// Return failure if there are any errors,
+	validation.error_count > 0
+) {
+	core.debug("Failing due to validation errors");
 	core.setFailed("Terraform configuration is not valid");
 } else if (
+	// or if there are any warnings and strict mode is enabled
 	validation.warning_count > 0 &&
-	core.getBooleanInput("strict_mode", { required: true })
+	strictMode
 ) {
+	core.debug("Failing due to validation warnings as strict mode is enabled");
 	core.setFailed("Terraform configuration is not valid");
 }
