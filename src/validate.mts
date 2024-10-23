@@ -1,9 +1,18 @@
 import * as core from "@actions/core";
+import { context, getOctokit } from "@actions/github";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { exec } from "@actions/exec";
-import { strict } from "node:assert";
+import { get } from "node:http";
+
+const commentTag = `<!-- Comment from ${context.action} -->`;
+
+if (!context.payload.pull_request) {
+	throw new Error("This action can only be run on pull_request events");
+}
+const { pull_request } = context.payload;
+const octokit = getOctokit(core.getInput("token", { required: true }));
 
 core.info("Starting Terraform validation");
 
@@ -103,7 +112,7 @@ if (!validation.format_version.startsWith("1.")) {
 }
 
 // Generate summary for the run
-if (validation.valid) {
+if (validation.error_count === 0 && validation.warning_count === 0) {
 	core.info("Terraform configuration is valid");
 	await core.summary
 		.addHeading(":white_check_mark: Validation successful", 2)
