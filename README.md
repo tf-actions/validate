@@ -1,9 +1,10 @@
-# terraform-validate GitHub Action
+# tf-validate GitHub Action
 
-A javascript GitHub Action to validate a Terraform configuration, and post a code review on the pull request highlighting issues.
+A javascript GitHub Action to validate a Terraform configuration, and post a
+code review on the pull request highlighting issues.
 
-The action will initialise the Terraform working directory by default.
-This can be disabled with the `init` parameter.
+The action will initialise the Terraform working directory by default. This can
+be disabled with the `init` parameter.
 
 A summary will be posted with details of any validation errors.
 
@@ -34,5 +35,5 @@ steps:
       terraform_wrapper: false
 
   - name: Validate Configuration
-    uses: oWretch/terraform-validate@v1
+    uses: tf-actions/validate@v1
 ```
